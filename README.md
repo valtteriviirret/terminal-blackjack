@@ -5,8 +5,7 @@ Blackjack game that can be played from Linux terminal
 Regular Blackjack rules: Jack's, Queen's and King's value is 10.
 Ace is either 1 or 11 depending on your hand.
 
-You can hit, stand or double any two cards, however playing double doesn't really make sense since 
-there are no bets here.
+You can hit, stand or double any two cards.
 
 Two cards with same value can be splitted just like regular Blackjack.
 Oh and there are no house rules. You can split and hit on aces.
