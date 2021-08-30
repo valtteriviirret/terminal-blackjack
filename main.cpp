@@ -1,32 +1,82 @@
-#include <iostream>
-#include <unistd.h>
+#include <cctype>
 #include <climits>
+#include <sstream>
 #include "Deck.h"
+#include "Account.h"
+#include "BlackJack.h"
 
-#define waitTime 100000
-#define playstring std::cout << "PRESS (h) FOR HIT, (s) FOR STAND, (d) FOR DOUBLE";
-
-bool CheckBust(int &hand);
-int CountScore(int &hand, int add, int &aces);
-void PrintCard(Card card);
-void DetermineWinner(int &player, int &dealer, Deck &d, std::string handname);
-void WinHandle(int &player, int &dealer, Deck &d, bool isSplit, int &split1, int &split2, int &split3);
-bool Hit(int &split, int hit, int &aces, bool firstround, bool &splitpossible);
-void WinCheck(int &hand, int &dealer, std::string handname, bool isSplit);
-int SplitHand(Card card, std::string handnum, bool &firstround);
-int Doubling(Card card, int &aces, int split, int &counter);
+bool CheckNum(std::string str);
+int Betting(int bet);
 
 int main()
 {
 	std::cout << "\nWELCOME TO TERMINAL BLACKJACK!\n\n";
 	bool gameOn = true;
 	
+	// creating account
+	Account account;
+
+	// instance for BlackJack
+	BlackJack bj;
+
+	int bet = 0;
+	
 	// loop for hand played
 	while(gameOn)
 	{
-		std::cout << "PRESS (ENTER) TO PLAY!\n";
-		std::cin.get();
+		account.Read();
+		// last round's bet is saved
+		if(bet != 0)
+		{
+			std::cout << "CURRENT BET: " << bet << "\n";
+			std::cout << "PRESS ENTER TO PLAY WITH SAME BET OR TYPE DIFFERENT BET\n";
+			
+			// setting the bet, returns 0 if bet is != integer, pressing enter for same bet
+			bet = Betting(bet);
+			if(bet == 0)
+			{
+				std::cout << "\nPLEASE ENTER THE BET AS AN INTEGER!\n";
+				continue;
+			}
+		}
+
+		else
+		{
+			// this is the first round played, so bet must be chosen
+			std::cout << "ENTER YOUR BET AND PRESS ENTER!\n";
+			std::string str;
+			std::stringstream ss;
+			std::cin >> str;
+			// checking that bet is correct
+			if(CheckNum(str))
+			{
+				// setting the bet
+				ss << str;
+				ss >> bet;
+			}
+
+			else
+			{
+				std::cout << "\nPLEASE ENTER THE BEST AS AN INTEGER!\n";
+				continue;
+			}
+		}
 		
+		if(account.Balance() == 0)
+		{
+			std::cout << "OUT OF BALANCE!\npsst \"rm .account.txt\" to get more balance\n";
+			break;
+		}
+		
+		else if(bet > account.Balance())
+		{
+			std::cout << "YOU CANNOT BET MORE THAN YOUR BALANCE!\n\n";
+			continue;
+		}
+
+		// setting the bet to BlackJack class
+		bj.DefineBet(bet);
+
 		Deck deck;
 		// main player hand, or last hand with split
 		int playerHand = 0;
@@ -35,7 +85,6 @@ int main()
 		bool gettingCard = true;
 		bool firstround = true;
 		bool splitpossible = false;
-		bool isSplitted = false;
 		int acesInGame = 0;
 
 		// max amount of splits
@@ -55,20 +104,19 @@ int main()
 		// dealer card no1	
 		usleep(waitTime);
 		Card DC1 = deck.getCard();
-		PrintCard(DC1);
+		bj.PrintCard(DC1);
 		dealerHand += DC1.value;
-
 	
 		std::cout << "\nYOU:\n";
 		// player card 1
 		usleep(waitTime);
 		Card PC1 = deck.getCard();
-		PrintCard(PC1);
+		bj.PrintCard(PC1);
 
 		// player card 2
 		usleep(waitTime);
 		Card PC2 = deck.getCard();
-		PrintCard(PC2);
+		bj.PrintCard(PC2);
 
 		// calculate aces in hand
 		if((PC1.value == 1) ^ (PC2.value == 1))
@@ -78,16 +126,18 @@ int main()
 			acesInGame += 2;
 
 		// counting first two cards
-		playerHand = CountScore(playerHand, (PC1.value + PC2.value), acesInGame);
+		playerHand = bj.CountScore(playerHand, (PC1.value + PC2.value), acesInGame);
 		
 		if(playerHand == 21)
 		{
 			std::cout << "BLACKJACK!\nYOU WIN!\n\n";
+			account.Write(account.Balance() + bet * 1.5);
 			continue;
 		}
 		
 		std::cout << "YOU HAVE " << playerHand << "\n";
 
+		// macro from Blackjack.h
 		playstring
 		
 		// adding split option if two first cards have the same value
@@ -99,6 +149,7 @@ int main()
 
 		std::cout << "\n";
 
+		// while getting more cards
 		while(gettingCard)
 		{
 			std::string choice;
@@ -113,47 +164,51 @@ int main()
 				usleep(waitTime);
 				// generate and print random card
 				Card PC3 = deck.getCard();
-				PrintCard(PC3);
+				bj.PrintCard(PC3);
 				
 				// double down and go to next splitcard
 				if(splitCardCounter == 1 && splitmax == 2)
 				{
-					split1 = Doubling(PC3, acesInGame, split1, splitCardCounter);
+					split1 = bj.Doubling(PC3, acesInGame, split1, splitCardCounter, splitmax);
 					choice = "j";
 				}
 
 				else if(splitCardCounter == 2 && splitmax != 2)
 				{
-					split2 = Doubling(PC3, acesInGame, split2, splitCardCounter);
+					split2 = bj.Doubling(PC3, acesInGame, split2, splitCardCounter, splitmax);
 					choice = "j";
 				}
 				else if(splitCardCounter == 3 && splitmax != 3)
 				{
-					split3 = Doubling(PC3, acesInGame, split3, splitCardCounter);
+					split3 = bj.Doubling(PC3, acesInGame, split3, splitCardCounter, splitmax);
 					choice = "j";
 				}
 				else
 				{
-					playerHand = Doubling(PC3, acesInGame, playerHand, splitCardCounter);
+					playerHand = bj.Doubling(PC3, acesInGame, playerHand, splitCardCounter, splitmax);
 					// see the winner only if card didn't bust
 					if(playerHand != -1)
-						WinHandle(playerHand, dealerHand, deck, isSplitted, split1, split2, split3);
+						bj.WinHandle(playerHand, dealerHand, split1, split2, split3);
+				
+					// if lost remove balance
+					else
+						account.Write(account.Balance() - (bet * 2));
+
 					// break the loop
 					gettingCard = false;
 				}
-				
 			}
 			
 			if(choice == "s")
 			{
-				if(isSplitted)
+				if(bj.isSplitted())
 					splitCardCounter += 1;
 
 				else
 					// normal gameplay i.e. non-splitted
-					WinHandle(playerHand, dealerHand, deck, isSplitted, split1, split2, split3);
+					bj.WinHandle(playerHand, dealerHand, split1, split2, split3);
 				
-				if(!isSplitted)
+				if(!bj.isSplitted())
 					gettingCard = false;
 				else
 					choice = "j";
@@ -166,8 +221,8 @@ int main()
 				{
 					// get new card
 					SC1 = deck.getCard();
-					PrintCard(SC1);
-					if(!Hit(split1, SC1.value, acesInGame, firstround, splitpossible))
+					bj.PrintCard(SC1);
+					if(!bj.Hit(split1, SC1.value, acesInGame, firstround, splitpossible))
 					{
 						// if 21 or bust move on to next card
 						splitCardCounter += 1;
@@ -180,12 +235,12 @@ int main()
 						continue;
 					}
 				}
-				
+				// same for all possible hands	
 				else if(splitCardCounter == 2 && splitmax != 2)
 				{
 					SC2 = deck.getCard();
-					PrintCard(SC2);
-					if(!Hit(split2, SC2.value, acesInGame, firstround, splitpossible))
+					bj.PrintCard(SC2);
+					if(!bj.Hit(split2, SC2.value, acesInGame, firstround, splitpossible))
 					{
 						splitCardCounter += 1;
 						choice = "j";
@@ -200,8 +255,8 @@ int main()
 				else if(splitCardCounter == 3 && splitmax != 3)
 				{
 					SC3 = deck.getCard();
-					PrintCard(SC3);
-					if(!Hit(split3, SC3.value, acesInGame, firstround, splitpossible))
+					bj.PrintCard(SC3);
+					if(!bj.Hit(split3, SC3.value, acesInGame, firstround, splitpossible))
 					{
 						splitCardCounter += 1;
 						choice = "j";
@@ -217,10 +272,10 @@ int main()
 				else
 				{
 					Card card = deck.getCard();
-					PrintCard(card);
-					if(!Hit(playerHand, card.value, acesInGame, firstround, splitpossible))
+					bj.PrintCard(card);
+					if(!bj.Hit(playerHand, card.value, acesInGame, firstround, splitpossible))
 					{
-						WinHandle(playerHand, dealerHand, deck, isSplitted, split1, split2, split3);
+						bj.WinHandle(playerHand, dealerHand, split1, split2, split3);
 						gettingCard = false;
 					}
 					else
@@ -230,15 +285,16 @@ int main()
 					}
 				}
 			}
-
+			
+			// choose to split
 			if(choice == "j" && splitpossible == true)
 			{
-				isSplitted = true;
+				bj.DefineSplit(true);
 
 				// break the loop with max of 3 splits
 				if(splitCardCounter > splitmax)
 				{
-					WinHandle(playerHand, dealerHand, deck, isSplitted, split1, split2, split3);
+					bj.WinHandle(playerHand, dealerHand, split1, split2, split3);
 					gettingCard = false;
 				}
 
@@ -256,7 +312,7 @@ int main()
 						std::cout << "\n\nHAND THREE:\n";
 					else
 						std::cout << "\n\nHAND FOUR:\n";
-					PrintCard(PC2);
+					bj.PrintCard(PC2);
 					std::cout << "YOU HAVE " << playerHand << "\n";
 					playstring
 					std::cout <<"\n";
@@ -266,21 +322,21 @@ int main()
 				// split1 gets the value of first card
 				else if(splitCardCounter == 1)
 				{
-					split1 = SplitHand(PC1, "ONE", firstround);
+					split1 = bj.SplitHand(PC1, "ONE", firstround);
 					continue;
 				}
 				
 				// split after split
 				else if(splitCardCounter == 2)
 				{
-					split2 = SplitHand(SC1, "TWO", firstround);
+					split2 = bj.SplitHand(SC1, "TWO", firstround);
 					continue;
 				}
 
 				// split after split after split
 				else if(splitCardCounter == 3)
 				{
-					split3 = SplitHand(SC2, "THREE", firstround);
+					split3 = bj.SplitHand(SC2, "THREE", firstround);
 					continue;
 				}
 			}
@@ -293,217 +349,31 @@ int main()
 	return 0;
 }
 
-// double down, check if new card busts
-int Doubling(Card card, int &aces, int split, int &counter)
+// check if the bet is correct
+bool CheckNum(std::string str)
 {
-	counter += 1;
-	if(card.value == 1)
-		aces += 1;
-	split = CountScore(split, card.value, aces);
-	if(CheckBust(split))
-	{
-		std::cout << "YOU HAVE " << split << "\n";
-		return split;
-	}
-	split = -1;
-	return split;
-}
-
-// new splitcard, return its beginning value
-int SplitHand(Card card, std::string handnum, bool &firstround)
-{
-	int split;
-	firstround = true;
-	split = card.value;
-	if(card.value == 1)
-		split += 10;
-	std::cout << "\n\nHAND " << handnum << ":\n";
-	PrintCard(card);
-	std::cout << "YOU HAVE " << split << "\n";
-	playstring
-	std::cout << "\n";
-	return split;
-}
-
-// return false if 21 or over, return true if less than 21
-bool Hit(int &split, int hit, int &aces, bool firstround, bool &splitpossible) 
-{
-	std::string splitstring = "\nPRESS (h) FOR HIT OR (s) FOR STAND";
-	// possibility for new split
-	if(split == hit && firstround == true)
-	{
-		splitstring += " OR (j) FOR SPLIT";
-		splitpossible = true;
-	}
-	if(hit == 1)
-		aces += 1;
-	split = CountScore(split, hit, aces);
-	if(CheckBust(split))
-	{
-		if(split == 21)
-		{
-			std::cout << "YOU HAVE " << split << "\n";
+	for(int i = 0; i < int(str.size()); i++)
+		if(std::isdigit(str[i]) == false)
 			return false;
-		}
-		splitstring += "\n";
-		std::cout << "YOU HAVE " << split;
-		std::cout << splitstring;
-		return true;	
-	}
-	split = -1;
-	return false;
+	return true;
 }
 
-void WinHandle(int &player, int &dealer, Deck &d, bool isSplit, int &split1, int &split2, int &split3)
+int Betting(int bet)
 {
-	int count = 2;
-	std::string handname = "SECOND ";
-	std::string hn = "TWO";
-	
-	// regular gameplay, without hand number
-	if(!isSplit)
-		DetermineWinner(player, dealer, d, "");
+	std::string str;
+	std::stringstream ss;
+	// reading input
+	std::getline(std::cin, str);
+	// check for correct bet
+	if(CheckNum(str))
+	{
+		ss << str;
+		ss >> bet;
+		return bet;
+	}
 	else
 	{
-		// if splitted more than once show score with count and give string values to "player"
-		if(split2 != 0)
-		{
-			count = 3;
-			handname = "THIRD ";
-			hn = "THREE";
-		}
-
-		if(split3 != 0)
-		{
-			count = 4;
-			handname = "FOURTH ";
-			hn = "FOUR";
-		}
-
-		if(split1 == -1)
-			std::cout << "FIRST HAND BUSTED!\n\n";
-		else
-			DetermineWinner(split1, dealer, d, "ONE");
-
-		// if splitted twice
-		if(count > 2)
-		{
-			if(split2 == -1)
-				std::cout << "SECOND HAND BUSTED!\n\n";
-			else
-				DetermineWinner(split2, dealer, d, "TWO");
-		}
-
-		// if splitted three times
-		if(count > 3)
-		{
-			if(split3 == -1)
-				std::cout << "THIRD HAND BUSTED!\n\n";
-			else
-				DetermineWinner(split3, dealer, d, "THREE");
-		}
-	
-		// playerHand is always the last hand. This is the reason this function is messy
-		if(player == -1)
-			std::cout << handname << "HAND BUSTED!\n\n";
-		else
-			DetermineWinner(player, dealer, d, hn);
+		bet = 0;
+		return bet;
 	}
 }
-
-
-void DetermineWinner(int &player, int &dealer, Deck &d, std::string handname)
-{
-	// dealer must hit until 17
-	while(dealer < 17)
-	{
-		usleep(waitTime);
-		Card card = d.getCard();
-		dealer += card.value;
-		std::cout << "DEALER HAS: " << dealer << "\n";
-	}
-	
-	if(handname != "")
-		WinCheck(player, dealer, handname, true);
-	else
-		WinCheck(player, dealer, "empty", false);
-}
-
-// 
-void WinCheck(int &hand, int &dealer, std::string handname, bool isSplit)
-{
-	if(isSplit)
-		std::cout << "HAND " << handname << ":\n";
-	
-	if(dealer > 21)
-		std::cout << "\nDEALER BUSTS!\nYOU WIN!\n\n";
-	else if(hand > dealer)
-		std::cout << "\nYOU WIN!\n\n";
-	else if(hand == dealer)
-		std::cout << "\nPUSH!\n\n";
-	else
-		std::cout << "\nYOU LOST!\n\n";
-}
-
-int CountScore(int &hand, int add, int &aces)
-{
-	int score;
-	if(aces == 0)
-		score = hand + add;
-	// ace acts as eleven if score is less than 21
-	else if(aces == 1)
-	{
-		aces -= 1;
-		score = (hand + add + 10);
-		if(score > 21)
-			score -= 10;
-	}
-	// this means 2 aces in the beginning hand
-	else
-	{
-		score = 12;
-		aces -= 2;
-	}
-	return score;
-}
-
-bool CheckBust(int &hand)
-{
-	if(hand > 21)	
-	{
-		std::cout << "YOU HAVE " << hand  << "\n" << "\nBUST!\n\n";
-		return false;
-	}
-	else
-		return true;
-}
-
-void PrintCard(Card card)
-{
-	std::string empty = " ";
-
-	// bigger card for number 10
-	if(card.stringvalue == "10")
-	{
-		std::string bigmodel = "  -----\n  |";
-		std::string bigothermodel = "|\n  |    |\n  -----\n";
-		bigmodel += card.suite;
-		bigmodel += empty;
-		bigmodel += card.stringvalue;
-		bigmodel += bigothermodel;
-		std::cout << bigmodel;
-	}
-
-	else
-	{
-		std::string cardmodel = "  ----\n  |";
-		std::string othermodel = "|\n  |   |\n  ----\n";
-		cardmodel += card.suite;
-		cardmodel += empty;
-		cardmodel += card.stringvalue;
-		cardmodel += othermodel;
-		std::cout << cardmodel;	
-	}
-}
-
-
