@@ -18,8 +18,8 @@ class BlackJack
 		int CountScore(int &hand, int add, int &aces);
 		void PrintCard(Card card);
 		void WinHandle(int &player, int &dealer, int &split1, int &split2, int &split3);
-		bool Hit(int &split, int hit, int &aces, bool firstround, bool &splitpossible);
-		int SplitHand(Card card, std::string handnum, bool &firstround);
+		bool Hit(int &split, int hit, int &aces, bool firstround, bool splitpossible);
+		int SplitHand(Card card, std::string handnum, bool firstround);
 		int Doubling(Card card, int &aces, int split, int &counter, int &splitmax);
 		void DefineBet(int bet);
 		void DefineSplit(bool value);

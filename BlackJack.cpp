@@ -12,6 +12,8 @@ BlackJack::BlackJack()
 
 void BlackJack::DefineSplit(bool value){ isSplit = value; }
 
+void BlackJack::DefineBet(int Bet){ bet = Bet; }
+
 bool BlackJack::isSplitted(){ return isSplit; }
 
 int BlackJack::CountScore(int &hand, int add, int &aces)
@@ -243,7 +245,7 @@ void BlackJack::WinCheck(int &hand, int &dealer, std::string handname, bool isSp
 }
 
 // return false if 21 or over, return true if less than 21
-bool BlackJack::Hit(int &split, int hit, int &aces, bool firstround, bool &splitpossible)
+bool BlackJack::Hit(int &split, int hit, int &aces, bool firstround, bool splitpossible)
 {
 	std::string splitstring = "\nPRESS (h) FOR HIT OR (s) FOR STAND";
 	// possibility for new split
@@ -272,7 +274,7 @@ bool BlackJack::Hit(int &split, int hit, int &aces, bool firstround, bool &split
 }
 
 // new splitcard, return its beginning value
-int BlackJack::SplitHand(Card card, std::string handnum, bool &firstround)
+int BlackJack::SplitHand(Card card, std::string handnum, bool firstround)
 {
 	int split;
 	firstround = true;
@@ -313,7 +315,5 @@ int BlackJack::Doubling(Card card, int &aces, int split, int &counter, int &spli
 	split = -1;
 	return split;
 }
-
-void BlackJack::DefineBet(int Bet){ bet = Bet; }
 
 
