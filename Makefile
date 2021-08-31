@@ -1,5 +1,5 @@
 # files in the program
-FILES = Deck.cpp main.cpp
+FILES = Deck.cpp Account.cpp BlackJack.cpp main.cpp
 
 # compiler
 CC = g++
